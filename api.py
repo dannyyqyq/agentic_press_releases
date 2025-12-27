@@ -42,6 +42,36 @@ async def health_check():
         "persona_agents": ["bbc", "taylor_swift"]
     }
     
+# @app.post("/generate", response_model=Response)
+# async def generate(req: Request):
+#     inputs = {
+#         "topic": req.topic,
+#         "selected_persona": req.persona,
+#         "retrieved_samples": [], "style_guide": "", "category": "",
+#         "bbc_article_draft": "", "taylor_swift_tweet_draft": "",
+#         "feedback_history": [], "revision_count": 0, "final_approval": False
+#     }
+
+#     # We use a dictionary to keep track of the accumulated state
+#     full_state = inputs.copy()
+
+#     # astream yields partial updates. We merge them into full_state.
+#     async for output in graph_app.astream(inputs):
+#         for node_name, state_update in output.items():
+#             full_state.update(state_update)
+
+#     # Extract the correct content based on persona
+#     if req.persona == "bbc":
+#         content = full_state.get("bbc_article_draft")
+#     else:
+#         content = full_state.get("taylor_swift_tweet_draft")
+
+#     return Response(
+#         content=content or "[No content generated]",
+#         revision_count=full_state.get("revision_count", 0),
+#         approved=full_state.get("final_approval", False)
+#     )
+
 @app.post("/generate", response_model=Response)
 async def generate(req: Request):
     inputs = {
@@ -52,19 +82,50 @@ async def generate(req: Request):
         "feedback_history": [], "revision_count": 0, "final_approval": False
     }
 
-    # We use a dictionary to keep track of the accumulated state
     full_state = inputs.copy()
 
-    # astream yields partial updates. We merge them into full_state.
+    print(f"\n🚀 Starting Workflow for Persona: {req.persona.upper()}...")
+    print("-" * 60)
+
+    # astream yields updates as they happen
     async for output in graph_app.astream(inputs):
         for node_name, state_update in output.items():
             full_state.update(state_update)
+            
+            # --- YOUR LOGGING LOGIC START ---
+            print(f"\n[NODE COMPLETED: {node_name.upper()}]")
 
-    # Extract the correct content based on persona
-    if req.persona == "bbc":
-        content = full_state.get("bbc_article_draft")
-    else:
-        content = full_state.get("taylor_swift_tweet_draft")
+            if "retrieved_samples" in state_update:
+                print(f"Found {len(state_update['retrieved_samples'])} reference samples.")
+
+            if "style_guide" in state_update:
+                print("\n--- STYLE DNA EXTRACTED ---")
+                print(state_update["style_guide"])
+                print("-" * 30)
+
+            if "taylor_swift_tweet_draft" in state_update and state_update["taylor_swift_tweet_draft"]:
+                print(f"\n--- NEW TAYLOR SWIFT DRAFT ---\n{state_update['taylor_swift_tweet_draft']}")
+
+            if "bbc_article_draft" in state_update and state_update["bbc_article_draft"]:
+                print(f"\n--- NEW BBC DRAFT ---\n{state_update['bbc_article_draft']}")
+
+            if "feedback_history" in state_update and state_update["feedback_history"]:
+                print(f"\nCRITIC FEEDBACK:\n{state_update['feedback_history'][-1]}")
+
+            if "revision_count" in state_update:
+                print(f"Revision count: {state_update['revision_count']}")
+
+            if "final_approval" in state_update:
+                print(f"Final approval: {state_update['final_approval']}")
+
+            print("\n" + "=" * 60 + "\n")
+
+    # Extract final content for the API response
+    content = (
+        full_state.get("bbc_article_draft") 
+        if req.persona == "bbc" 
+        else full_state.get("taylor_swift_tweet_draft")
+    )
 
     return Response(
         content=content or "[No content generated]",
