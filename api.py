@@ -1,7 +1,17 @@
+from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Literal
-from src.nodes import app  # your compiled graph
+import os
+from src.nodes import app as graph_app  # renamed to avoid conflict with FastAPI app
+from datetime import datetime
+
+# Simple uptime tracker
+start_time = datetime.now()
+
+# Load API Key before any other logic
+os.environ["OPENAI_API_KEY"] = os.getenv("OPENAI_API_KEY")
 
 app = FastAPI(title="Style Mimic Agent")
 
@@ -14,7 +24,25 @@ class Response(BaseModel):
     revision_count: int
     approved: bool
 
-@app.post("/generate")
+@app.get("/")
+def read_root():
+    return {"Message": "Welcome to mimic model!"}
+
+@app.get("/health")
+async def health_check():
+    """
+    Standard health check for deployment platforms and monitoring tools.
+    """
+    uptime = datetime.now() - start_time
+    return {
+        "status": "healthy",
+        "uptime": str(uptime),
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+        "persona_agents": ["bbc", "taylor_swift"]
+    }
+    
+@app.post("/generate", response_model=Response)
 async def generate(req: Request):
     inputs = {
         "topic": req.topic,
@@ -24,18 +52,22 @@ async def generate(req: Request):
         "feedback_history": [], "revision_count": 0, "final_approval": False
     }
 
-    final_state = None
-    async for output in app.astream(inputs):
-        final_state = list(output.values())[-1]  # latest state
+    # We use a dictionary to keep track of the accumulated state
+    full_state = inputs.copy()
 
-    content = (
-        final_state.get("bbc_article_draft") 
-        if req.persona == "bbc" 
-        else final_state.get("taylor_swift_tweet_draft", "")
-    )
+    # astream yields partial updates. We merge them into full_state.
+    async for output in graph_app.astream(inputs):
+        for node_name, state_update in output.items():
+            full_state.update(state_update)
+
+    # Extract the correct content based on persona
+    if req.persona == "bbc":
+        content = full_state.get("bbc_article_draft")
+    else:
+        content = full_state.get("taylor_swift_tweet_draft")
 
     return Response(
         content=content or "[No content generated]",
-        revision_count=final_state.get("revision_count", 0),
-        approved=final_state.get("final_approval", False)
+        revision_count=full_state.get("revision_count", 0),
+        approved=full_state.get("final_approval", False)
     )
