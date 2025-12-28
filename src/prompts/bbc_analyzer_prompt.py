@@ -13,7 +13,7 @@ Here are relevant BBC articles:
 {samples}
 
 TASK:
-First, identify the CATEGORY of these articles (e.g., sport, business, politics, tech, entertainment).
+First, identify the CATEGORY of these articles (sport, business, politics, tech, entertainment).
 Then, produce a concise Style Guide with these sections:
 
 1. Tone & Neutrality
