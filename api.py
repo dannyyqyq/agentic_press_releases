@@ -4,8 +4,9 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Literal
 import os
-from src.nodes import app as graph_app  # renamed to avoid conflict with FastAPI app
+from src.nodes import app as graph_app 
 from datetime import datetime
+from fastapi.responses import HTMLResponse
 
 # Simple uptime tracker
 start_time = datetime.now()
@@ -42,35 +43,6 @@ async def health_check():
         "persona_agents": ["bbc", "taylor_swift"]
     }
     
-# @app.post("/generate", response_model=Response)
-# async def generate(req: Request):
-#     inputs = {
-#         "topic": req.topic,
-#         "selected_persona": req.persona,
-#         "retrieved_samples": [], "style_guide": "", "category": "",
-#         "bbc_article_draft": "", "taylor_swift_tweet_draft": "",
-#         "feedback_history": [], "revision_count": 0, "final_approval": False
-#     }
-
-#     # We use a dictionary to keep track of the accumulated state
-#     full_state = inputs.copy()
-
-#     # astream yields partial updates. We merge them into full_state.
-#     async for output in graph_app.astream(inputs):
-#         for node_name, state_update in output.items():
-#             full_state.update(state_update)
-
-#     # Extract the correct content based on persona
-#     if req.persona == "bbc":
-#         content = full_state.get("bbc_article_draft")
-#     else:
-#         content = full_state.get("taylor_swift_tweet_draft")
-
-#     return Response(
-#         content=content or "[No content generated]",
-#         revision_count=full_state.get("revision_count", 0),
-#         approved=full_state.get("final_approval", False)
-#     )
 
 @app.post("/generate", response_model=Response)
 async def generate(req: Request):
@@ -132,3 +104,24 @@ async def generate(req: Request):
         revision_count=full_state.get("revision_count", 0),
         approved=full_state.get("final_approval", False)
     )
+    
+    
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_policy():
+    return """
+    <html>
+        <head><title>Privacy Policy</title></head>
+        <body>
+            <h1>Privacy Policy for Style Mimic Agent</h1>
+            <p><strong>Effective Date:</strong> December 2025</p>
+            <p>This AI agent is a personal project created for academic/demonstration purposes. 
+            It does not collect, store, or share any personal data from users.</p>
+            <ul>
+                <li><strong>Data Collection:</strong> No personally identifiable information (PII) is collected.</li>
+                <li><strong>Data Usage:</strong> Inputs are processed in real-time to generate style-mimicked content and are not stored on our servers.</li>
+                <li><strong>Third Parties:</strong> Data is processed via OpenAI APIs in accordance with their standard privacy terms.</li>
+            </ul>
+            <p>For questions, please contact the developer through the project repository.</p>
+        </body>
+    </html>
+    """
