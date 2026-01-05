@@ -34,7 +34,7 @@ Retriever → Analyzer → Drafter → Critic → (Revision Loop) → Final Outp
 ## Tech Stack
 
 - LangGraph + LangChain
-- OpenAI (gpt-4o-mini)
+- OpenAI (gpt series)
 - Chroma vector store
 - FastAPI + Uvicorn
 - Railway (deployment)
